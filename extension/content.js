@@ -1,5 +1,11 @@
 // Content script for scraping vehicle data from dealership websites
 
+// Prevent multiple script injections
+if (window.vinScraperInjected) {
+  // Script already injected, exit
+} else {
+  window.vinScraperInjected = true;
+
 // Scraping state
 let isScrapingActive = false;
 let scrapedVehicles = [];
@@ -507,3 +513,5 @@ function delay(ms) {
 
 // Initialize content script
 console.log('VinScraper content script loaded on:', window.location.hostname);
+
+} // End of injection guard

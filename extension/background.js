@@ -72,13 +72,26 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     const isSupported = supportedSites.some(site => tab.url.includes(site));
     
     if (isSupported) {
-      // Inject content script if not already injected
+      // Check if script is already injected
       chrome.scripting.executeScript({
         target: { tabId: tabId },
-        files: ['content.js']
-      }).catch(err => {
-        // Script might already be injected
-        console.log('Script injection skipped:', err.message);
+        func: () => window.vinScraperInjected
+      }).then((results) => {
+        if (!results[0].result) {
+          // Inject content script only if not already injected
+          chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            files: ['content.js']
+          }).catch(err => {
+            console.log('Script injection failed:', err.message);
+          });
+        }
+      }).catch(() => {
+        // Tab might not be ready, inject anyway
+        chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          files: ['content.js']
+        }).catch(() => {});
       });
       
       // Update badge to show extension is active
@@ -118,11 +131,26 @@ async function handleScrapeWebsite(data, sendResponse) {
     // Wait for tab to load then inject content script
     await waitForTabLoad(tabId);
     
-    // Inject and execute scraping script
-    await chrome.scripting.executeScript({
-      target: { tabId: tabId },
-      files: ['content.js']
-    });
+    // Check if content script is already injected, if not inject it
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        func: () => window.vinScraperInjected
+      });
+      
+      if (!results[0].result) {
+        await chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          files: ['content.js']
+        });
+      }
+    } catch (error) {
+      // Inject script anyway
+      await chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        files: ['content.js']
+      });
+    }
     
     // Start scraping
     await chrome.tabs.sendMessage(tabId, {
