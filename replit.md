@@ -18,6 +18,7 @@ Preferred communication style: Simple, everyday language.
 ✓ **Enhanced Extension Script Management**: Improved background script to prevent duplicate content script injections
 ✓ **Created Complete Setup Guide**: Added SETUP.md with detailed instructions for server and Chrome extension installation
 ✓ **Completed Migration to Standard Replit Environment**: Successfully migrated project from Replit Agent to standard Replit with proper client-server separation, secure configuration, and full functionality verification
+✓ **Completed Migration to Standard Replit Environment**: Successfully migrated project from Replit Agent to standard Replit with proper client-server separation, secure configuration, and full functionality verification
 
 ## System Architecture
 
@@ -83,6 +84,7 @@ Currently implements a simplified security model suitable for single-user or sma
 - **Vite**: Fast build tool and development server with TypeScript support
 - **TypeScript**: Type safety across frontend and backend
 - **ESBuild**: Fast JavaScript bundler for production builds
+- **TSX**: TypeScript execution for Node.js development server
 
 ### Chrome Extension APIs
 - **Chrome Storage API**: Persistent storage for extension preferences and scraped data
@@ -95,3 +97,20 @@ The system is designed to integrate with Facebook's platform for posting to grou
 ### Third-Party Services
 **Neon Database**: Cloud PostgreSQL service for production database hosting
 **Replit**: Development and deployment platform with integrated tooling
+
+## Development Environment Setup
+
+### Replit Environment (Recommended)
+The project is fully configured for Replit development:
+- All dependencies are pre-installed and configured
+- The "Start application" workflow runs `npm run dev` automatically
+- Development server runs on port 5000 with hot module replacement
+- All environment variables and build tools are properly configured
+
+### Local Development (Windows/Other Platforms)
+For local development outside of Replit:
+1. Install Node.js 20+ and npm
+2. Run `npm install` to install dependencies
+3. For Windows: Use `npm run dev` (the NODE_ENV prefix is handled automatically)
+4. For Unix-like systems: `NODE_ENV=development npm run dev` works as expected
+5. Access the application at `http://localhost:5000`
