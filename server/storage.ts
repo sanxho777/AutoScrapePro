@@ -53,6 +53,85 @@ export class MemStorage implements IStorage {
   }
 
   private initializeSampleData() {
+    // Sample vehicles for testing Facebook Marketplace integration
+    const sampleVehicles: Vehicle[] = [
+      {
+        id: randomUUID(),
+        vin: "1HGBH41JXMN109186",
+        make: "Honda",
+        model: "Civic",
+        year: 2021,
+        trim: "Sport",
+        price: "22995",
+        mileage: 32145,
+        transmission: "CVT Automatic",
+        fuelType: "Gasoline",
+        exteriorColor: "Crystal Black Pearl",
+        interiorColor: "Black",
+        features: ["Sunroof", "Backup Camera", "Bluetooth", "Apple CarPlay", "Alloy Wheels"],
+        images: ["https://example.com/honda-civic-1.jpg"],
+        description: "Well-maintained 2021 Honda Civic Sport with low miles. One owner, clean title.",
+        sourceUrl: "https://autotrader.com/cars-for-sale/vehicledetails.xhtml?123",
+        sourceSite: "AutoTrader",
+        dealerName: "Metro Honda",
+        dealerLocation: "Denver, CO",
+        status: "scraped",
+        scrapedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        postedAt: null,
+        lastUpdated: new Date(),
+      },
+      {
+        id: randomUUID(),
+        vin: "5NPE24AF4FH123456",
+        make: "Hyundai",
+        model: "Elantra",
+        year: 2015,
+        trim: "SE",
+        price: "14750",
+        mileage: 87234,
+        transmission: "6-Speed Manual",
+        fuelType: "Gasoline",
+        exteriorColor: "White",
+        interiorColor: "Gray",
+        features: ["Heated Seats", "Bluetooth", "USB Connectivity"],
+        images: [],
+        description: "Reliable 2015 Hyundai Elantra SE with manual transmission. Great gas mileage.",
+        sourceUrl: "https://cars.com/vehicledetail/detail/456789/overview/",
+        sourceSite: "Cars.com",
+        dealerName: "City Auto Sales",
+        dealerLocation: "Phoenix, AZ",
+        status: "scraped",
+        scrapedAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
+        postedAt: null,
+        lastUpdated: new Date(),
+      },
+      {
+        id: randomUUID(),
+        vin: "1FADP3F23FL123456",
+        make: "Ford",
+        model: "Focus",
+        year: 2015,
+        trim: "ST",
+        price: "18995",
+        mileage: 65432,
+        transmission: "6-Speed Manual",
+        fuelType: "Gasoline",
+        exteriorColor: "Performance Blue",
+        interiorColor: "Charcoal Black",
+        features: ["Turbo Engine", "Sport Seats", "Navigation", "SYNC 3", "ST Styling Package"],
+        images: ["https://example.com/ford-focus-st-1.jpg"],
+        description: "2015 Ford Focus ST - Performance hatchback with turbo power.",
+        sourceUrl: "https://cargurus.com/Cars/inventorylisting/123",
+        sourceSite: "CarGurus",
+        dealerName: "Performance Ford",
+        dealerLocation: "Austin, TX",
+        status: "scraped",
+        scrapedAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
+        postedAt: null,
+        lastUpdated: new Date(),
+      },
+    ];
+
     const sampleGroups: FacebookGroup[] = [
       {
         id: randomUUID(),
@@ -88,6 +167,11 @@ export class MemStorage implements IStorage {
         createdAt: new Date(),
       },
     ];
+
+    // Add sample data to storage
+    sampleVehicles.forEach(vehicle => {
+      this.vehicles.set(vehicle.id, vehicle);
+    });
 
     sampleGroups.forEach(group => {
       this.facebookGroups.set(group.id, group);
