@@ -14,6 +14,13 @@ const WEIGHT_FACTORS = [8, 7, 6, 5, 4, 3, 2, 10, 0, 9, 8, 7, 6, 5, 4, 3, 2];
 /**
  * Validates a VIN using the ISO 3779 standard check digit algorithm
  */
+export function validateVin(vin: string): boolean {
+  return isValidVIN(vin);
+}
+
+/**
+ * Validates a VIN using the ISO 3779 standard check digit algorithm
+ */
 export function isValidVIN(vin: string): boolean {
   if (!vin || typeof vin !== 'string') {
     return false;

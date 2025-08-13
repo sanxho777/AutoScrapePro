@@ -1,170 +1,148 @@
-import { InsertVehicle } from "@shared/schema";
+// Car scraping functions
 import { validateVin } from "./vin-validator";
 
-export interface ScrapingResult {
-  success: boolean;
-  vehicles: InsertVehicle[];
-  errors: string[];
-}
-
-export interface ScrapeOptions {
-  url: string;
+interface ScrapedVehicle {
+  vin: string;
+  make: string;
+  model: string;
+  year: number;
+  price: string;
+  mileage: number;
+  images?: string[];
+  features?: string[];
+  description?: string;
+  sourceUrl: string;
   sourceSite: string;
-  maxVehicles?: number;
 }
 
-// This would interface with the Chrome extension
-export class WebScraper {
-  static async scrapeUrl(options: ScrapeOptions): Promise<ScrapingResult> {
-    // In a real implementation, this would communicate with the Chrome extension
-    // For now, we'll return a mock result
-    console.log("Initiating scrape for:", options.url);
-    
-    // Check if Chrome extension is available
-    if (typeof chrome === 'undefined' || !chrome.runtime) {
-      throw new Error("Chrome extension not available. Please install the VinScraper extension.");
+export class CarScraper {
+  static async isExtensionAvailable(): Promise<boolean> {
+    const chromeApi = (globalThis as any).chrome;
+    if (typeof chromeApi === 'undefined' || !chromeApi.runtime) {
+      return false;
     }
 
     try {
-      // Send message to Chrome extension
-      const response = await new Promise<any>((resolve, reject) => {
-        chrome.runtime.sendMessage(
+      return new Promise((resolve) => {
+        chromeApi.runtime.sendMessage(
           {
-            action: "scrapeWebsite",
-            data: options
+            action: 'ping'
           },
-          (response) => {
-            if (chrome.runtime.lastError) {
-              reject(new Error(chrome.runtime.lastError.message));
+          (response: any) => {
+            if (chromeApi.runtime.lastError) {
+              resolve(false);
             } else {
-              resolve(response);
+              resolve(response?.success === true);
             }
           }
         );
       });
-
-      return response;
     } catch (error) {
-      throw new Error(`Scraping failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  static getSupportedSites(): string[] {
-    return [
-      "AutoTrader",
-      "Cars.com",
-      "CarGurus",
-      "Dealer.com",
-      "CarMax",
-    ];
-  }
-
-  static isSupportedSite(url: string): boolean {
-    try {
-      const hostname = new URL(url).hostname.toLowerCase();
-      return (
-        hostname.includes("autotrader") ||
-        hostname.includes("cars.com") ||
-        hostname.includes("cargurus") ||
-        hostname.includes("dealer.com") ||
-        hostname.includes("carmax")
-      );
-    } catch {
       return false;
     }
   }
 
-  static detectSiteFromUrl(url: string): string {
-    try {
-      const hostname = new URL(url).hostname.toLowerCase();
-      
-      if (hostname.includes("autotrader")) return "AutoTrader";
-      if (hostname.includes("cars.com")) return "Cars.com";
-      if (hostname.includes("cargurus")) return "CarGurus";
-      if (hostname.includes("dealer.com")) return "Dealer.com";
-      if (hostname.includes("carmax")) return "CarMax";
-      
-      return "Unknown";
-    } catch {
-      return "Unknown";
+  static async startScraping(url: string): Promise<ScrapedVehicle[]> {
+    const isAvailable = await this.isExtensionAvailable();
+    if (!isAvailable) {
+      throw new Error('Chrome extension not available');
     }
-  }
-}
 
-// Vehicle data extraction patterns for different sites
-export const scrapingPatterns = {
-  autotrader: {
-    vehicle: '[data-cmp="inventoryListing"]',
-    price: '[data-cmp="price"]',
-    title: '[data-cmp="vehicleTitle"]',
-    mileage: '[data-cmp="mileage"]',
-    vin: '[data-vin]',
-    images: '[data-cmp="vehicleImage"] img',
-  },
-  cars: {
-    vehicle: '.shop-srp-listings__listing-container',
-    price: '.primary-price',
-    title: '.listing-row__title',
-    mileage: '.listing-row__mileage',
-    vin: '[data-vin]',
-    images: '.listing-row__image img',
-  },
-  cargurus: {
-    vehicle: '[data-testid="listing-card"]',
-    price: '[data-testid="price"]',
-    title: '[data-testid="listing-title"]',
-    mileage: '[data-testid="mileage"]',
-    vin: '[data-vin]',
-    images: '[data-testid="listing-image"] img',
-  },
-};
-
-// Extract vehicle data from HTML
-export function extractVehicleData(html: string, sourceSite: string, sourceUrl: string): InsertVehicle[] {
-  // This would be implemented in the Chrome extension content script
-  // For now, return empty array as this needs DOM access
-  console.log("Extracting vehicle data from HTML for:", sourceSite);
-  return [];
-}
-
-// Validate extracted vehicle data
-export function validateVehicleData(vehicle: Partial<InsertVehicle>): { isValid: boolean; errors: string[] } {
-  const errors: string[] = [];
-
-  if (!vehicle.vin || !validateVin(vehicle.vin)) {
-    errors.push("Invalid or missing VIN");
+    return new Promise((resolve, reject) => {
+      const chromeApi = (globalThis as any).chrome;
+      chromeApi.runtime.sendMessage(
+        {
+          action: 'scrape',
+          url: url
+        },
+        (response: any) => {
+          if (chromeApi.runtime.lastError) {
+            reject(new Error(chromeApi.runtime.lastError.message));
+          } else if (response.error) {
+            reject(new Error(response.error));
+          } else {
+            resolve(response.vehicles || []);
+          }
+        }
+      );
+    });
   }
 
-  if (!vehicle.make) {
-    errors.push("Missing vehicle make");
+  static async getSupportedSites(): Promise<string[]> {
+    return [
+      'autotrader.com',
+      'cars.com', 
+      'cargurus.com',
+      'dealer.com',
+      'carmax.com'
+    ];
   }
 
-  if (!vehicle.model) {
-    errors.push("Missing vehicle model");
+  static async validateScrapedData(vehicles: ScrapedVehicle[]): Promise<ScrapedVehicle[]> {
+    return vehicles.filter(vehicle => {
+      // Validate VIN
+      if (!vehicle.vin || !validateVin(vehicle.vin)) {
+        console.warn(`Invalid VIN: ${vehicle.vin}`);
+        return false;
+      }
+
+      // Validate required fields
+      if (!vehicle.make || !vehicle.model || !vehicle.year || !vehicle.price) {
+        console.warn(`Missing required fields for vehicle: ${vehicle.vin}`);
+        return false;
+      }
+
+      // Validate year range (reasonable range)
+      const currentYear = new Date().getFullYear();
+      if (vehicle.year < 1980 || vehicle.year > currentYear + 1) {
+        console.warn(`Invalid year: ${vehicle.year} for VIN: ${vehicle.vin}`);
+        return false;
+      }
+
+      return true;
+    });
   }
 
-  if (!vehicle.year || vehicle.year < 1900 || vehicle.year > new Date().getFullYear() + 2) {
-    errors.push("Invalid or missing vehicle year");
+  static async getScrapingStatus(): Promise<{
+    isRunning: boolean;
+    progress?: number;
+    currentSite?: string;
+    vehiclesFound?: number;
+  }> {
+    const isAvailable = await this.isExtensionAvailable();
+    if (!isAvailable) {
+      return { isRunning: false };
+    }
+
+    return new Promise((resolve) => {
+      const chromeApi = (globalThis as any).chrome;
+      chromeApi.runtime.sendMessage(
+        { action: 'getStatus' },
+        (response: any) => {
+          resolve(response || { isRunning: false });
+        }
+      );
+    });
   }
 
-  if (!vehicle.price || parseFloat(vehicle.price.toString()) <= 0) {
-    errors.push("Invalid or missing price");
-  }
+  static async stopScraping(): Promise<void> {
+    const isAvailable = await this.isExtensionAvailable();
+    if (!isAvailable) {
+      throw new Error('Chrome extension not available');
+    }
 
-  if (!vehicle.mileage || vehicle.mileage < 0) {
-    errors.push("Invalid or missing mileage");
+    return new Promise((resolve, reject) => {
+      const chromeApi = (globalThis as any).chrome;
+      chromeApi.runtime.sendMessage(
+        { action: 'stop' },
+        (response: any) => {
+          if (chromeApi.runtime.lastError) {
+            reject(new Error(chromeApi.runtime.lastError.message));
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
   }
-
-  if (!vehicle.sourceUrl) {
-    errors.push("Missing source URL");
-  }
-
-  if (!vehicle.sourceSite) {
-    errors.push("Missing source site");
-  }
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-  };
 }
