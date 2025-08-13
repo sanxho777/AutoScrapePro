@@ -17,11 +17,14 @@ export default function ActivityFeed() {
     }
   };
 
-  const formatTimeAgo = (date: Date | null) => {
+  const formatTimeAgo = (date: Date | string | null) => {
     if (!date) return "Unknown time";
     
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(dateObj.getTime())) return "Unknown time";
+    
     const now = new Date();
-    const diff = now.getTime() - date.getTime();
+    const diff = now.getTime() - dateObj.getTime();
     const minutes = Math.floor(diff / (1000 * 60));
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
