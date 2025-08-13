@@ -2,13 +2,13 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
+import { ProgressTracker } from "@/components/scraper/progress-tracker";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Scraper() {
   const [url, setUrl] = useState("");
-  const [isScrapingActive, setIsScrapingActive] = useState(false);
-  const [scrapingProgress, setScrapingProgress] = useState(0);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -17,9 +17,9 @@ export default function Scraper() {
       const response = await apiRequest("POST", "/api/scraper/start", data);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({ title: "Scraping started successfully" });
-      setIsScrapingActive(true);
+      setCurrentSessionId(data.sessionId);
       queryClient.invalidateQueries({ queryKey: ["/api/scraping-logs"] });
     },
     onError: () => {
@@ -89,8 +89,8 @@ export default function Scraper() {
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             {/* Scraping Control Panel */}
-            <div className="xl:col-span-2">
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-6">
+            <div className="xl:col-span-2 space-y-6">
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
                 <div className="p-6 border-b border-slate-200">
                   <h3 className="text-lg font-semibold text-slate-900 mb-2">Start New Scraping Session</h3>
                   <p className="text-sm text-slate-600">Enter a dealership URL to begin scraping vehicle data</p>
@@ -113,7 +113,7 @@ export default function Scraper() {
                         />
                         <button
                           onClick={handleStartScraping}
-                          disabled={scrapeMutation.isPending || isScrapingActive}
+                          disabled={scrapeMutation.isPending || !!currentSessionId}
                           className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                           data-testid="button-start-scraping"
                         >
@@ -122,10 +122,10 @@ export default function Scraper() {
                               <i className="fas fa-spinner animate-spin"></i>
                               <span>Starting...</span>
                             </>
-                          ) : isScrapingActive ? (
+                          ) : currentSessionId ? (
                             <>
-                              <i className="fas fa-stop"></i>
-                              <span>Stop</span>
+                              <i className="fas fa-clock"></i>
+                              <span>Running</span>
                             </>
                           ) : (
                             <>
@@ -137,26 +137,31 @@ export default function Scraper() {
                       </div>
                     </div>
 
-                    {isScrapingActive && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-blue-900">Scraping Progress</span>
-                          <span className="text-sm text-blue-700">{scrapingProgress}%</span>
-                        </div>
-                        <div className="w-full bg-blue-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${scrapingProgress}%` }}
-                          ></div>
-                        </div>
-                        <p className="text-sm text-blue-700 mt-2">
-                          Scanning for vehicle listings...
-                        </p>
-                      </div>
-                    )}
+
                   </div>
                 </div>
               </div>
+
+              {/* Progress Tracker */}
+              {currentSessionId && (
+                <ProgressTracker 
+                  sessionId={currentSessionId}
+                  onComplete={() => {
+                    setCurrentSessionId(null);
+                    queryClient.invalidateQueries({ queryKey: ["/api/vehicles"] });
+                    queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+                    toast({ title: "Scraping completed successfully!" });
+                  }}
+                  onError={(error) => {
+                    setCurrentSessionId(null);
+                    toast({ 
+                      title: "Scraping failed", 
+                      description: error,
+                      variant: "destructive" 
+                    });
+                  }}
+                />
+              )}
 
               {/* Chrome Extension Setup */}
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm">

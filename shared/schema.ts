@@ -56,9 +56,13 @@ export const scrapingLogs = pgTable("scraping_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   url: text("url").notNull(),
   sourceSite: text("source_site").notNull(),
-  status: text("status").notNull(), // success, failed, partial
+  status: text("status").notNull(), // running, success, error, paused, cancelled
   vehiclesFound: integer("vehicles_found").default(0),
   vehiclesScraped: integer("vehicles_scraped").default(0),
+  totalPages: integer("total_pages"),
+  currentPage: integer("current_page"),
+  progress: integer("progress"), // percentage 0-100
+  currentAction: text("current_action"), // scanning, extracting, validating
   errorMessage: text("error_message"),
   startedAt: timestamp("started_at").defaultNow(),
   completedAt: timestamp("completed_at"),

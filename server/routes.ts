@@ -3,6 +3,39 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertVehicleSchema, insertFacebookGroupSchema, insertFacebookPostSchema, insertScrapingLogSchema } from "@shared/schema";
 
+// Active scraping sessions for progress tracking
+const activeScrapingSessions = new Map<string, {
+  id: string;
+  url: string;
+  sourceSite: string;
+  status: 'running' | 'paused' | 'cancelled' | 'success' | 'error';
+  progress: number;
+  currentAction?: string;
+  vehiclesFound: number;
+  vehiclesScraped: number;
+  totalPages?: number;
+  currentPage?: number;
+  errorMessage?: string;
+  startedAt: Date;
+  completedAt?: Date;
+  duration?: number;
+}>();
+
+// Generate session ID
+function generateSessionId(): string {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
+
+// Helper to determine source site from URL
+function getSourceSiteFromUrl(url: string): string {
+  if (url.includes('autotrader.com')) return 'autotrader';
+  if (url.includes('cars.com')) return 'cars';
+  if (url.includes('cargurus.com')) return 'cargurus';
+  if (url.includes('dealer.com')) return 'dealer';
+  if (url.includes('carmax.com')) return 'carmax';
+  return 'unknown';
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Vehicle routes
   app.get("/api/vehicles", async (req, res) => {
@@ -104,33 +137,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Scraping routes
-  app.post("/api/scrape", async (req, res) => {
+  // Enhanced scraper routes with progress tracking
+  app.post("/api/scraper/start", async (req, res) => {
     try {
-      const { url, sourceSite } = req.body;
-      
-      if (!url || !sourceSite) {
-        return res.status(400).json({ error: "URL and source site are required" });
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).json({ error: "URL is required" });
       }
 
-      // Create scraping log
-      const log = await storage.createScrapingLog({
+      const sessionId = generateSessionId();
+      const sourceSite = getSourceSiteFromUrl(url);
+      
+      // Create scraping session
+      const session = {
+        id: sessionId,
         url,
         sourceSite,
-        status: "success",
+        status: 'running' as const,
+        progress: 0,
+        currentAction: 'scanning',
         vehiclesFound: 0,
         vehiclesScraped: 0,
+        startedAt: new Date()
+      };
+      
+      activeScrapingSessions.set(sessionId, session);
+
+      // Create scraping log in storage
+      await storage.createScrapingLog({
+        url,
+        sourceSite,
+        status: 'running',
+        vehiclesFound: 0,
+        vehiclesScraped: 0
       });
 
-      // In a real implementation, this would trigger the Chrome extension
-      // For now, we'll return a success response
+      // Simulate scraping progress (in real implementation, this would be handled by Chrome extension)
+      simulateScrapingProgress(sessionId);
+
       res.json({ 
         success: true, 
-        message: "Scraping initiated. Check Chrome extension for progress.",
-        logId: log.id 
+        sessionId,
+        message: "Scraping started successfully" 
       });
     } catch (error) {
-      res.status(500).json({ error: "Failed to initiate scraping" });
+      res.status(500).json({ error: "Failed to start scraping" });
+    }
+  });
+
+  // Progress tracking routes
+  app.get("/api/scraper/progress/:sessionId", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const session = activeScrapingSessions.get(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+
+      res.json(session);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch progress" });
+    }
+  });
+
+  app.post("/api/scraper/stop/:sessionId", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const session = activeScrapingSessions.get(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+
+      session.status = 'cancelled';
+      session.completedAt = new Date();
+      session.duration = session.completedAt.getTime() - session.startedAt.getTime();
+      
+      res.json({ success: true, message: "Scraping stopped" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to stop scraping" });
+    }
+  });
+
+  app.post("/api/scraper/pause/:sessionId", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const session = activeScrapingSessions.get(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+
+      session.status = 'paused';
+      res.json({ success: true, message: "Scraping paused" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to pause scraping" });
+    }
+  });
+
+  app.post("/api/scraper/resume/:sessionId", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const session = activeScrapingSessions.get(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+
+      session.status = 'running';
+      res.json({ success: true, message: "Scraping resumed" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to resume scraping" });
     }
   });
 
@@ -157,4 +275,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   return httpServer;
+}
+
+// Simulate scraping progress for demo purposes
+function simulateScrapingProgress(sessionId: string) {
+  const session = activeScrapingSessions.get(sessionId);
+  if (!session) return;
+
+  let progress = 0;
+  let vehiclesFound = 0;
+  let currentPage = 1;
+  const totalPages = Math.floor(Math.random() * 5) + 3; // 3-7 pages
+  
+  const interval = setInterval(async () => {
+    const session = activeScrapingSessions.get(sessionId);
+    if (!session || session.status !== 'running') {
+      clearInterval(interval);
+      return;
+    }
+
+    // Simulate progress
+    progress += Math.floor(Math.random() * 15) + 5; // 5-20% increments
+    if (progress > 100) progress = 100;
+    
+    // Simulate finding vehicles
+    if (Math.random() > 0.3) {
+      vehiclesFound += Math.floor(Math.random() * 3) + 1; // 1-3 vehicles per update
+    }
+
+    // Update session
+    session.progress = progress;
+    session.vehiclesFound = vehiclesFound;
+    session.vehiclesScraped = Math.floor(vehiclesFound * 0.8); // 80% success rate
+    session.totalPages = totalPages;
+    session.currentPage = Math.min(currentPage, totalPages);
+    
+    // Update current action
+    if (progress < 30) session.currentAction = 'scanning';
+    else if (progress < 70) session.currentAction = 'extracting';
+    else if (progress < 100) session.currentAction = 'validating';
+    else session.currentAction = undefined;
+
+    // Complete when progress reaches 100%
+    if (progress >= 100) {
+      session.status = 'success';
+      session.completedAt = new Date();
+      session.duration = session.completedAt.getTime() - session.startedAt.getTime();
+      session.currentAction = undefined;
+      
+      // Create some sample vehicles
+      for (let i = 0; i < session.vehiclesScraped; i++) {
+        try {
+          await storage.createVehicle({
+            vin: generateSampleVIN(),
+            make: getRandomMake(),
+            model: getRandomModel(),
+            year: 2020 + Math.floor(Math.random() * 4),
+            price: (Math.random() * 50000 + 15000).toString(),
+            mileage: Math.floor(Math.random() * 100000),
+            sourceUrl: session.url,
+            sourceSite: session.sourceSite
+          });
+        } catch (error) {
+          console.error('Failed to create sample vehicle:', error);
+        }
+      }
+      
+      clearInterval(interval);
+    }
+
+    currentPage++;
+  }, 2000); // Update every 2 seconds
+}
+
+// Helper functions for sample data
+function generateSampleVIN(): string {
+  const chars = 'ABCDEFGHJKLMNPRSTUVWXYZ0123456789';
+  let vin = '';
+  for (let i = 0; i < 17; i++) {
+    vin += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return vin;
+}
+
+function getRandomMake(): string {
+  const makes = ['Toyota', 'Honda', 'Ford', 'BMW', 'Mercedes', 'Audi', 'Nissan', 'Hyundai'];
+  return makes[Math.floor(Math.random() * makes.length)];
+}
+
+function getRandomModel(): string {
+  const models = ['Camry', 'Accord', 'F-150', '3 Series', 'C-Class', 'A4', 'Altima', 'Elantra'];
+  return models[Math.floor(Math.random() * models.length)];
 }
