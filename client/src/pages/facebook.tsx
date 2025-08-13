@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
+import { QuickPost } from "@/components/facebook/quick-post";
 import { Vehicle } from "@shared/schema";
 
 export default function Facebook() {
@@ -97,6 +98,11 @@ export default function Facebook() {
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-slate-900 mb-2">Facebook Marketplace</h1>
             <p className="text-slate-600">Auto-generate optimized Facebook Marketplace vehicle listings</p>
+          </div>
+
+          {/* Quick Post Section */}
+          <div className="mb-8">
+            <QuickPost />
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

@@ -137,6 +137,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Quick Post route for Facebook Marketplace
+  app.post("/api/facebook/quick-post", async (req, res) => {
+    try {
+      const { vehicleId, groupIds } = req.body;
+      
+      if (!vehicleId || !groupIds || !Array.isArray(groupIds) || groupIds.length === 0) {
+        return res.status(400).json({ error: "Vehicle ID and group IDs are required" });
+      }
+
+      // Get vehicle data
+      const vehicle = await storage.getVehicle(vehicleId);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+
+      // Get group data
+      const groups = await storage.getFacebookGroups();
+      const selectedGroups = groups.filter(g => groupIds.includes(g.id) && g.isActive);
+
+      if (selectedGroups.length === 0) {
+        return res.status(400).json({ error: "No valid groups selected" });
+      }
+
+      // Generate optimized Facebook Marketplace content
+      const marketplaceContent = generateFacebookMarketplaceContent(vehicle);
+
+      let successCount = 0;
+      let failedCount = 0;
+      const results = [];
+
+      // Create posts for each selected group
+      for (const group of selectedGroups) {
+        try {
+          const post = await storage.createFacebookPost({
+            vehicleId: vehicle.id,
+            groupId: group.id,
+            content: marketplaceContent,
+            status: 'pending' // In real implementation, this would trigger actual posting
+          });
+
+          results.push({
+            groupId: group.id,
+            groupName: group.name,
+            status: 'success',
+            postId: post.id
+          });
+          successCount++;
+        } catch (error) {
+          results.push({
+            groupId: group.id,
+            groupName: group.name,
+            status: 'failed',
+            error: 'Failed to create post'
+          });
+          failedCount++;
+        }
+      }
+
+      // In a real implementation, here you would:
+      // 1. Generate the Facebook Marketplace URL with pre-filled data
+      // 2. Use Facebook's API to auto-post (requires permissions)
+      // 3. Or provide the user with a pre-filled form URL
+
+      const marketplaceUrl = generateFacebookMarketplaceUrl(vehicle, marketplaceContent);
+
+      res.json({
+        success: true,
+        successCount,
+        failedCount,
+        totalGroups: selectedGroups.length,
+        results,
+        marketplaceUrl,
+        message: `Successfully prepared posts for ${successCount} groups`
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create quick posts" });
+    }
+  });
+
   // Enhanced scraper routes with progress tracking
   app.post("/api/scraper/start", async (req, res) => {
     try {
@@ -366,4 +445,55 @@ function getRandomMake(): string {
 function getRandomModel(): string {
   const models = ['Camry', 'Accord', 'F-150', '3 Series', 'C-Class', 'A4', 'Altima', 'Elantra'];
   return models[Math.floor(Math.random() * models.length)];
+}
+
+// Helper function to generate Facebook Marketplace content
+function generateFacebookMarketplaceContent(vehicle: any): string {
+  const parts = [
+    `🚗 ${vehicle.year} ${vehicle.make} ${vehicle.model}${vehicle.trim ? ` ${vehicle.trim}` : ''}`,
+    `📊 ${vehicle.mileage.toLocaleString()} miles`,
+    `💰 $${parseFloat(vehicle.price).toLocaleString()}`,
+  ];
+
+  if (vehicle.transmission) parts.push(`⚙️ ${vehicle.transmission}`);
+  if (vehicle.fuelType) parts.push(`⛽ ${vehicle.fuelType}`);
+  if (vehicle.exteriorColor) parts.push(`🎨 ${vehicle.exteriorColor} exterior`);
+  if (vehicle.interiorColor) parts.push(`🪑 ${vehicle.interiorColor} interior`);
+
+  if (vehicle.features && vehicle.features.length > 0) {
+    parts.push(`✨ Features: ${vehicle.features.slice(0, 8).join(', ')}`);
+  }
+
+  parts.push(`📋 VIN: ${vehicle.vin}`);
+  
+  if (vehicle.dealerName) {
+    parts.push(`🏪 Available at ${vehicle.dealerName}`);
+  }
+
+  if (vehicle.dealerLocation) {
+    parts.push(`📍 Located in ${vehicle.dealerLocation}`);
+  }
+
+  parts.push('');
+  parts.push('🔥 Don\'t miss out on this great deal!');
+  parts.push('💬 Message for more details or to schedule a viewing');
+  parts.push('#UsedCars #AutoSales #CarDealer #Vehicles');
+
+  return parts.join('\n\n');
+}
+
+// Helper function to generate Facebook Marketplace URL
+function generateFacebookMarketplaceUrl(vehicle: any, content: string): string {
+  const title = `${vehicle.year} ${vehicle.make} ${vehicle.model}${vehicle.trim ? ` ${vehicle.trim}` : ''}`;
+  const price = parseFloat(vehicle.price);
+  
+  const params = new URLSearchParams({
+    title: title,
+    price: price.toString(),
+    description: content,
+    category: 'VEHICLE',
+    condition: 'USED'
+  });
+
+  return `https://www.facebook.com/marketplace/create/vehicle?${params.toString()}`;
 }
