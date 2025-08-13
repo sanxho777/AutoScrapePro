@@ -15,35 +15,35 @@ let maxVehicles = 50;
 // Site-specific selectors and patterns
 const siteConfigs = {
   autotrader: {
-    vehicleCards: '[data-cmp="inventoryListing"], .listing-container, .atc-listing-card',
-    title: '[data-cmp="vehicleTitle"], .listing-title, .atc-listing-title',
-    price: '[data-cmp="price"], .pricing-container .first-price, .vehicle-price',
-    mileage: '[data-cmp="mileage"], .listing-mileage, .atc-listing-mileage',
-    vin: '[data-vin], .vin-number',
-    images: '[data-cmp="vehicleImage"] img, .listing-image img, .vehicle-image img',
-    dealer: '.dealer-name, .listing-dealer-name',
-    location: '.dealer-location, .listing-location',
-    features: '.vehicle-features li, .features-list li',
-    transmission: '.transmission, .listing-transmission',
-    fuelType: '.fuel-type, .listing-fuel-type',
-    exteriorColor: '.exterior-color, .listing-exterior-color',
-    description: '.vehicle-description, .listing-description'
+    vehicleCards: '[data-cmp="inventoryListing"], .listing-container, .atc-listing-card, .inventory-item, article[data-qa="car-card"]',
+    title: '[data-cmp="vehicleTitle"], .listing-title, .atc-listing-title, .vehicle-title, h3, h2',
+    price: '[data-cmp="price"], .pricing-container .first-price, .vehicle-price, .price, [data-qa="price"]',
+    mileage: '[data-cmp="mileage"], .listing-mileage, .atc-listing-mileage, .mileage, [data-qa="mileage"]',
+    vin: '[data-vin], .vin-number, .vin',
+    images: '[data-cmp="vehicleImage"] img, .listing-image img, .vehicle-image img, .gallery img, .photo img, .hero-image img',
+    dealer: '.dealer-name, .listing-dealer-name, .dealer-info, [data-qa="dealer"]',
+    location: '.dealer-location, .listing-location, .location',
+    features: '.vehicle-features li, .features-list li, .features li',
+    transmission: '.transmission, .listing-transmission, .drivetrain',
+    fuelType: '.fuel-type, .listing-fuel-type, .engine',
+    exteriorColor: '.exterior-color, .listing-exterior-color, .color',
+    description: '.vehicle-description, .listing-description, .description'
   },
   
   cars: {
-    vehicleCards: '.shop-srp-listings__listing-container, .listing-row, .vehicle-card',
-    title: '.listing-row__title, .vehicle-title',
-    price: '.primary-price, .listing-price',
-    mileage: '.listing-row__mileage, .vehicle-mileage',
-    vin: '[data-vin], .vin-display',
-    images: '.listing-row__image img, .vehicle-image img',
-    dealer: '.dealer-name, .listing-dealer',
-    location: '.dealer-location',
+    vehicleCards: '.shop-srp-listings__listing-container, .listing-row, .vehicle-card, .vehicle-tile, article[data-qa="vehicle-card"]',
+    title: '.listing-row__title, .vehicle-title, .title, h3, h2',
+    price: '.primary-price, .listing-price, .price, [data-qa="price"]',
+    mileage: '.listing-row__mileage, .vehicle-mileage, .mileage, [data-qa="mileage"]',
+    vin: '[data-vin], .vin-display, .vin',
+    images: '.listing-row__image img, .vehicle-image img, .photo img, .gallery img',
+    dealer: '.dealer-name, .listing-dealer, .dealer',
+    location: '.dealer-location, .location',
     features: '.vehicle-features li, .features li',
-    transmission: '.transmission-type',
-    fuelType: '.fuel-type',
-    exteriorColor: '.exterior-color',
-    description: '.vehicle-description'
+    transmission: '.transmission-type, .transmission',
+    fuelType: '.fuel-type, .engine',
+    exteriorColor: '.exterior-color, .color',
+    description: '.vehicle-description, .description'
   },
   
   cargurus: {
@@ -246,9 +246,27 @@ async function scrapeVehicles() {
 // Extract data from a single vehicle card
 async function extractVehicleData(card, config) {
   try {
-    // Extract basic information
+    console.log('Extracting data from vehicle card:', card.className);
+    
+    // Validate card contains vehicle data before proceeding
+    if (!isValidVehicleCard(card)) {
+      console.warn('Skipping invalid vehicle card');
+      return null;
+    }
+    
+    // Extract basic information (most critical data first)
     const title = extractText(card, config.title);
+    if (!title) {
+      console.warn('No title found, skipping card');
+      return null;
+    }
+    
     const priceText = extractText(card, config.price);
+    if (!priceText) {
+      console.warn('No price found for vehicle:', title);
+      return null;
+    }
+    
     const mileageText = extractText(card, config.mileage);
     
     // Parse title for make, model, year
@@ -258,20 +276,25 @@ async function extractVehicleData(card, config) {
       return null;
     }
     
-    // Extract VIN
+    console.log(`Processing: ${titleParts.year} ${titleParts.make} ${titleParts.model}`);
+    
+    // Extract VIN (be more careful about VIN extraction)
     let vin = extractText(card, config.vin);
     if (!vin) {
-      // Look for VIN in the entire card text
-      vin = extractVinFromText(card.textContent);
+      // Look for VIN in the card text, but be more precise
+      const cardText = card.textContent;
+      vin = extractVinFromText(cardText);
     }
     
     if (!vin || !validateVin(vin)) {
-      console.warn('No valid VIN found for vehicle:', title);
-      // Don't skip vehicles without VINs as some sites may not display them
+      console.log('No valid VIN found for vehicle:', title, '- generating unique identifier');
+      // Generate a more unique fallback ID
+      vin = `AUTO_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${titleParts.year}_${titleParts.make}_${titleParts.model}`.substring(0, 17);
     }
     
-    // Extract images
+    // Extract images with enhanced logic
     const images = extractImages(card, config.images);
+    console.log(`Found ${images.length} images for ${title}`);
     
     // Extract additional details
     const dealer = extractText(card, config.dealer);
@@ -283,7 +306,7 @@ async function extractVehicleData(card, config) {
     const description = extractText(card, config.description);
     
     const vehicleData = {
-      vin: vin || `UNKNOWN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      vin: vin,
       make: titleParts.make,
       model: titleParts.model,
       year: titleParts.year,
@@ -305,6 +328,8 @@ async function extractVehicleData(card, config) {
       scrapedAt: new Date().toISOString()
     };
     
+    console.log(`Successfully extracted vehicle: ${vehicleData.year} ${vehicleData.make} ${vehicleData.model} - ${vehicleData.images.length} images`);
+    
     return vehicleData;
     
   } catch (error) {
@@ -318,9 +343,17 @@ function extractText(container, selector) {
   if (!selector) return null;
   
   try {
+    // First try to find within the container (most specific)
     const element = container.querySelector(selector);
-    return element ? element.textContent.trim() : null;
+    if (element) {
+      let text = element.textContent.trim();
+      // Clean up common text artifacts
+      text = text.replace(/\s+/g, ' ').replace(/^\s*[\|\-\•]\s*/, '');
+      return text || null;
+    }
+    return null;
   } catch (error) {
+    console.warn('Error extracting text with selector:', selector, error);
     return null;
   }
 }
@@ -343,11 +376,35 @@ function extractImages(container, selector) {
   
   try {
     const imgElements = container.querySelectorAll(selector);
-    return Array.from(imgElements)
-      .map(img => img.src || img.getAttribute('data-src'))
-      .filter(src => src && src.startsWith('http'))
+    const imageUrls = Array.from(imgElements)
+      .map(img => {
+        // Try multiple common image attributes
+        return img.src || 
+               img.getAttribute('data-src') || 
+               img.getAttribute('data-lazy-src') ||
+               img.getAttribute('data-original') ||
+               img.getAttribute('data-srcset')?.split(',')[0]?.trim()?.split(' ')[0] ||
+               img.getAttribute('srcset')?.split(',')[0]?.trim()?.split(' ')[0];
+      })
+      .filter(src => {
+        if (!src) return false;
+        // Filter out placeholder/blank images and ensure valid URLs
+        if (src.includes('placeholder') || src.includes('blank') || src.includes('loading')) return false;
+        return src.startsWith('http') || src.startsWith('//');
+      })
+      .map(src => {
+        // Normalize protocol-relative URLs
+        if (src.startsWith('//')) {
+          return 'https:' + src;
+        }
+        return src;
+      })
       .slice(0, 5); // Limit to 5 images
+    
+    console.log(`Found ${imageUrls.length} images for vehicle card`);
+    return imageUrls;
   } catch (error) {
+    console.warn('Error extracting images:', error);
     return [];
   }
 }
@@ -444,6 +501,25 @@ function validateVin(vin) {
   if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(cleanVin)) return false;
   
   return true;
+}
+
+// Validate if element is a proper vehicle card before processing
+function isValidVehicleCard(card) {
+  if (!card || !card.textContent) return false;
+  
+  const cardText = card.textContent.toLowerCase();
+  
+  // Check if the card contains vehicle-related keywords
+  const vehicleKeywords = ['year', 'miles', 'price', '$', 'automatic', 'manual', 'sedan', 'suv', 'truck', 'coupe', 'hatchback'];
+  const hasVehicleKeywords = vehicleKeywords.some(keyword => cardText.includes(keyword));
+  
+  // Check if it has a reasonable amount of content (not just a header or footer)
+  const hasContent = cardText.length > 50;
+  
+  // Make sure it's not just a navigation element or ad
+  const isNotNavigation = !cardText.includes('menu') && !cardText.includes('navigation') && !cardText.includes('advertisement');
+  
+  return hasVehicleKeywords && hasContent && isNotNavigation;
 }
 
 // Validate extracted vehicle data
