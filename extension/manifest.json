@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "VinScraper Pro",
+  "version": "1.0.0",
+  "description": "Scrape vehicle data from dealership websites and generate Facebook Marketplace listings",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://www.autotrader.com/*",
+    "https://www.cars.com/*",
+    "https://www.cargurus.com/*",
+    "https://www.dealer.com/*",
+    "https://www.carmax.com/*",
+    "https://www.facebook.com/*",
+    "http://localhost:*/*",
+    "https://*.replit.dev/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.autotrader.com/*",
+        "https://www.cars.com/*",
+        "https://www.cargurus.com/*",
+        "https://www.dealer.com/*",
+        "https://www.carmax.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "VinScraper Pro"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["content.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

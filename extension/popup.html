@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VinScraper Pro</title>
+    <link rel="stylesheet" href="popup.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="popup-container">
+        <!-- Header -->
+        <header class="popup-header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <i class="fas fa-car"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>VinScraper</h1>
+                    <span>Pro</span>
+                </div>
+            </div>
+            <div class="connection-status" id="connectionStatus">
+                <div class="status-indicator offline" id="statusIndicator"></div>
+                <span id="statusText">Offline</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="popup-main">
+            <!-- Current Site Detection -->
+            <section class="current-site" id="currentSite" style="display: none;">
+                <div class="site-info">
+                    <i class="fas fa-globe site-icon"></i>
+                    <div class="site-details">
+                        <h3 id="siteName">Unknown Site</h3>
+                        <p id="siteStatus">Not supported</p>
+                    </div>
+                </div>
+                <button class="scrape-button" id="scrapeButton" disabled>
+                    <i class="fas fa-spider"></i>
+                    <span>Scrape Page</span>
+                </button>
+            </section>
+
+            <!-- Quick Scrape Form -->
+            <section class="quick-scrape">
+                <h3>Quick Scrape</h3>
+                <form id="quickScrapeForm">
+                    <div class="input-group">
+                        <input type="url" id="urlInput" placeholder="Enter dealership URL..." required>
+                        <button type="submit" class="submit-button" id="submitButton">
+                            <i class="fas fa-spider"></i>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Scraping Progress -->
+            <section class="scraping-progress" id="scrapingProgress" style="display: none;">
+                <h3>Scraping in Progress</h3>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span id="progressPercent">0%</span>
+                        <span id="vehiclesFound">0 vehicles found</span>
+                    </div>
+                </div>
+                <button class="stop-button" id="stopButton">
+                    <i class="fas fa-stop"></i>
+                    Stop Scraping
+                </button>
+            </section>
+
+            <!-- Statistics -->
+            <section class="statistics">
+                <h3>Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalVehicles">0</div>
+                        <div class="stat-label">Vehicles</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="sitesScraped">0</div>
+                        <div class="stat-label">Sites</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="successRate">0%</div>
+                        <div class="stat-label">Success</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Recent Vehicles -->
+            <section class="recent-vehicles">
+                <h3>Recent Vehicles</h3>
+                <div class="vehicles-list" id="vehiclesList">
+                    <div class="empty-state">
+                        <i class="fas fa-car-side"></i>
+                        <p>No vehicles scraped yet</p>
+                        <small>Start scraping to see vehicles here</small>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer Actions -->
+        <footer class="popup-footer">
+            <button class="footer-button" id="syncButton">
+                <i class="fas fa-sync"></i>
+                <span>Sync</span>
+            </button>
+            <button class="footer-button" id="settingsButton">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </button>
+            <button class="footer-button primary" id="openWebAppButton">
+                <i class="fas fa-external-link-alt"></i>
+                <span>Web App</span>
+            </button>
+        </footer>
+
+        <!-- Settings Panel (Hidden by default) -->
+        <div class="settings-panel" id="settingsPanel" style="display: none;">
+            <div class="panel-header">
+                <h3>Settings</h3>
+                <button class="close-button" id="closeSettings">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="panel-content">
+                <div class="setting-group">
+                    <label for="webAppUrl">Web App URL</label>
+                    <input type="url" id="webAppUrl" placeholder="http://localhost:5000">
+                </div>
+                <div class="setting-group">
+                    <label for="maxVehicles">Max Vehicles per Scrape</label>
+                    <input type="number" id="maxVehicles" value="50" min="1" max="200">
+                </div>
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="autoSync">
+                        Auto-sync with Web App
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="showNotifications">
+                        Show Notifications
+                    </label>
+                </div>
+                <button class="save-button" id="saveSettings">
+                    <i class="fas fa-save"></i>
+                    Save Settings
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+            <div class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i>
+            </div>
+            <p id="loadingText">Loading...</p>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div class="toast-container" id="toastContainer"></div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
