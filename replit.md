@@ -18,7 +18,7 @@ Preferred communication style: Simple, everyday language.
 ✓ **Enhanced Extension Script Management**: Improved background script to prevent duplicate content script injections
 ✓ **Created Complete Setup Guide**: Added SETUP.md with detailed instructions for server and Chrome extension installation
 ✓ **Completed Migration to Standard Replit Environment**: Successfully migrated project from Replit Agent to standard Replit with proper client-server separation, secure configuration, and full functionality verification
-✓ **Completed Migration to Standard Replit Environment**: Successfully migrated project from Replit Agent to standard Replit with proper client-server separation, secure configuration, and full functionality verification
+✓ **Configured Production Deployment**: Updated deployment configuration to use proper production build and start commands. The application now correctly builds optimized bundles and serves static assets in production mode
 
 ## System Architecture
 
@@ -114,3 +114,29 @@ For local development outside of Replit:
 3. For Windows: Use `npm run dev` (the NODE_ENV prefix is handled automatically)
 4. For Unix-like systems: `NODE_ENV=development npm run dev` works as expected
 5. Access the application at `http://localhost:5000`
+
+## Production Deployment
+
+### Deployment Configuration
+The project is properly configured for production deployment on Replit:
+
+**Build Process**: `npm run build`
+- Uses Vite to build optimized frontend assets to `dist/public/`
+- Uses ESBuild to bundle the server code to `dist/index.js`
+- Generates production-ready static assets with compression and optimization
+
+**Production Start**: `npm run start`
+- Sets `NODE_ENV=production` for optimal performance
+- Serves static files instead of using Vite development server
+- Runs the compiled server bundle for better performance
+
+**Environment Detection**: The server automatically detects the environment:
+- **Development**: Uses Vite middleware for hot module replacement
+- **Production**: Serves pre-built static assets from `dist/public/`
+
+### Deployment Commands
+- **Build Command**: `npm run build` - Creates optimized production bundles
+- **Start Command**: `npm run start` - Runs the production server
+- **Development Command**: `npm run dev` - Runs development server with HMR (not used in deployment)
+
+The deployment configuration in `.replit` correctly specifies these commands for production deployment.
